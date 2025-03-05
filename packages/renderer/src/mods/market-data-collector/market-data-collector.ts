@@ -64,8 +64,10 @@ export class MarketDataCollectorMod extends Mod {
   private getServerName(): string {
     try {
       // Tentative de récupération du nom du serveur depuis l'interface
-      if (this.wGame.gui && this.wGame.gui.playerData && this.wGame.gui.playerData.server) {
-        return this.wGame.gui.playerData.server.name || 'Unknown';
+      if (this.wGame.gui && this.wGame.gui.playerData) {
+        // Accéder au nom du serveur via d'autres propriétés disponibles
+        // Cela peut varier selon la structure exacte de l'objet playerData
+        return this.wGame.gui.playerData.characterBaseInformations?.name || 'Unknown';
       }
     } catch (e) {
       console.error('[TouchPlanner] Erreur lors de la récupération du nom du serveur:', e);
@@ -125,70 +127,76 @@ export class MarketDataCollectorMod extends Mod {
    * Configure les écouteurs d'événements
    */
   private setupEventListeners() {
-    // Écouter l'ouverture de la fenêtre HDV
-    this.eventManager.on<GUIEvents, 'windowOpened'>(
-      this.wGame.gui,
-      'windowOpened',
-      (window: GUIWindow) => {
-        if (window.id === 'bidHouseShop') {
-          console.log('[TouchPlanner] Fenêtre du marché ouverte');
-          this.bidHouseWindow = window as GenericWindow;
-          this.hookMarketData();
-        }
-      }
-    );
-
-    // Écouter les messages du marché
-    this.eventManager.on<GUIEvents, 'ExchangeBidHouseItemAddOkMessage'>(
-      this.wGame.gui,
-      'ExchangeBidHouseItemAddOkMessage',
-      (msg) => {
-        if (msg && msg.itemInfo) {
-          this.processMarketItemData(msg.itemInfo);
-        }
-      }
-    );
-
-    this.eventManager.on<GUIEvents, 'ExchangeTypesItemsExchangerDescriptionForUserMessage'>(
-      this.wGame.gui,
-      'ExchangeTypesItemsExchangerDescriptionForUserMessage',
-      (msg) => {
-        if (msg && msg.itemTypeDescriptions) {
-          msg.itemTypeDescriptions.forEach((item: any) => {
-            if (item) {
-              this.processMarketItemTypeData(item);
-            }
-          });
-        }
-      }
-    );
+    // Écouter l'ouverture de la fenêtre HDV via un observateur DOM
+    this.observeForWindowChanges();
 
     // Sauvegarder les données périodiquement
     setInterval(() => this.saveData(), 5 * 60 * 1000); // Toutes les 5 minutes
   }
 
   /**
+   * Observer les changements dans le DOM pour détecter l'ouverture des fenêtres
+   */
+  private observeForWindowChanges() {
+    try {
+      // Observer les changements dans le DOM pour détecter l'ouverture de nouvelles fenêtres
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            // Parcourir les nœuds ajoutés pour trouver des fenêtres
+            mutation.addedNodes.forEach((node) => {
+              if (node instanceof HTMLElement) {
+                // Vérifier si c'est une fenêtre de l'HDV
+                if (
+                  node.classList.contains('window') && 
+                  (node.id === 'bidHouseShop' || node.querySelector('.bidHouseShop'))
+                ) {
+                  console.log('[TouchPlanner] Fenêtre du marché détectée');
+                  this.hookMarketData(node);
+                }
+              }
+            });
+          }
+        });
+      });
+
+      // Observer le conteneur principal
+      const targetNode = document.querySelector('.app') || document.body;
+      if (targetNode) {
+        observer.observe(targetNode, { 
+          childList: true,
+          subtree: true
+        });
+      }
+    } catch (e) {
+      console.error('[TouchPlanner] Erreur lors de l\'observation des changements de fenêtres:', e);
+    }
+  }
+
+  /**
    * Accroches sur la fenêtre du marché pour collecter les données
    */
-  private hookMarketData() {
-    if (!this.bidHouseWindow) return;
-
-    // Observe les changements dans le DOM pour détecter les modifications de la fenêtre du marché
-    const observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
-        if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-          // Analyser les nœuds ajoutés pour trouver des informations sur les items
-          this.analyzeAddedNodes(mutation.addedNodes);
-        }
+  private hookMarketData(windowElement: HTMLElement) {
+    try {
+      console.log('[TouchPlanner] Accrochage sur la fenêtre du marché');
+      
+      // Observer les changements dans le DOM pour détecter les modifications de la fenêtre du marché
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+          if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+            // Analyser les nœuds ajoutés pour trouver des informations sur les items
+            this.analyzeAddedNodes(mutation.addedNodes);
+          }
+        });
       });
-    });
 
-    // Observer les changements dans la fenêtre du marché
-    if (this.bidHouseWindow.rootElement) {
-      observer.observe(this.bidHouseWindow.rootElement, {
+      // Observer les changements dans la fenêtre du marché
+      observer.observe(windowElement, {
         childList: true,
         subtree: true
       });
+    } catch (e) {
+      console.error('[TouchPlanner] Erreur lors de l\'accrochage sur la fenêtre du marché:', e);
     }
   }
 
@@ -199,7 +207,7 @@ export class MarketDataCollectorMod extends Mod {
     nodes.forEach((node) => {
       if (node instanceof HTMLElement) {
         // Rechercher les éléments qui contiennent des données d'items
-        const itemElements = node.querySelectorAll('.item');
+        const itemElements = node.querySelectorAll('[data-item-id], .item');
         
         itemElements.forEach((itemElement) => {
           if (itemElement instanceof HTMLElement) {
@@ -216,22 +224,47 @@ export class MarketDataCollectorMod extends Mod {
   private extractItemDataFromElement(element: HTMLElement) {
     try {
       // Tentative d'extraction des données de l'élément
-      // Note: Ceci est une approche générique, les sélecteurs exacts
-      // dépendront de la structure du DOM de Dofus Touch
+      // Note: Les sélecteurs exacts dépendent de la structure du DOM de Dofus Touch
       
-      // Exemple d'extraction (à adapter selon la structure réelle)
-      const itemId = parseInt(element.getAttribute('data-item-id') || '0');
-      const name = element.querySelector('.name')?.textContent || 'Unknown';
-      const priceElement = element.querySelector('.price');
-      const price = priceElement 
-        ? parseInt(priceElement.textContent?.replace(/\D/g, '') || '0') 
-        : 0;
-      const quantityElement = element.querySelector('.quantity');
-      const quantity = quantityElement 
-        ? parseInt(quantityElement.textContent?.replace(/\D/g, '') || '0') 
-        : 0;
+      // Tenter d'obtenir l'ID de l'item
+      let itemId = 0;
+      const dataItemId = element.getAttribute('data-item-id');
+      if (dataItemId) {
+        itemId = parseInt(dataItemId);
+      } else {
+        // Essayer d'autres attributs possibles
+        const dataId = element.getAttribute('data-id') || element.getAttribute('id');
+        if (dataId && /^\d+$/.test(dataId)) {
+          itemId = parseInt(dataId);
+        }
+      }
       
-      if (itemId && price) {
+      if (itemId === 0) return; // Si on n'a pas d'ID valide, on abandonne
+      
+      // Extraire le nom
+      let name = 'Unknown';
+      const nameElement = element.querySelector('.name, .title, .itemName');
+      if (nameElement && nameElement.textContent) {
+        name = nameElement.textContent.trim();
+      }
+      
+      // Extraire le prix
+      let price = 0;
+      const priceElement = element.querySelector('.price, .kamas, .itemPrice');
+      if (priceElement && priceElement.textContent) {
+        price = parseInt(priceElement.textContent.replace(/\D/g, '')) || 0;
+      }
+      
+      // Extraire la quantité
+      let quantity = 1;
+      const quantityElement = element.querySelector('.quantity, .itemQuantity');
+      if (quantityElement && quantityElement.textContent) {
+        quantity = parseInt(quantityElement.textContent.replace(/\D/g, '')) || 1;
+      }
+      
+      if (itemId && price > 0) {
+        console.log(`[TouchPlanner] Item détecté - ID: ${itemId}, Nom: ${name}, Prix: ${price}, Quantité: ${quantity}`);
+        
         this.updateItemData(itemId, {
           itemId,
           objectUID: itemId, // Par défaut, utiliser itemId comme objectUID
@@ -244,64 +277,6 @@ export class MarketDataCollectorMod extends Mod {
       }
     } catch (e) {
       console.error('[TouchPlanner] Erreur lors de l\'extraction des données d\'item:', e);
-    }
-  }
-
-  /**
-   * Traite les données d'un item du marché reçues via les messages du jeu
-   */
-  private processMarketItemData(itemInfo: any) {
-    try {
-      if (!itemInfo) return;
-      
-      const itemId = itemInfo.objectGID || itemInfo.objectUID || 0;
-      if (!itemId) return;
-      
-      const itemData: MarketItemData = {
-        itemId,
-        objectUID: itemInfo.objectUID || itemId,
-        name: itemInfo.name || itemInfo._name || 'Unknown',
-        price: itemInfo.prices?.[0] || 0,
-        quantity: itemInfo.quantity || 1,
-        server: this.currentServer,
-        timestamp: Date.now()
-      };
-      
-      this.updateItemData(itemId, itemData);
-    } catch (e) {
-      console.error('[TouchPlanner] Erreur lors du traitement des données d\'item:', e);
-    }
-  }
-
-  /**
-   * Traite les données d'un type d'item du marché
-   */
-  private processMarketItemTypeData(itemType: any) {
-    try {
-      if (!itemType) return;
-      
-      const itemId = itemType.typeId || 0;
-      if (!itemId) return;
-      
-      // Extraire les prix et quantités si disponibles
-      const prices = itemType.prices || [];
-      const quantities = itemType.quantities || [];
-      
-      if (prices.length > 0) {
-        const itemData: MarketItemData = {
-          itemId,
-          objectUID: itemId,
-          name: itemType.name || 'Unknown',
-          price: prices[0] || 0,
-          quantity: quantities[0] || 1,
-          server: this.currentServer,
-          timestamp: Date.now()
-        };
-        
-        this.updateItemData(itemId, itemData);
-      }
-    } catch (e) {
-      console.error('[TouchPlanner] Erreur lors du traitement des données de type d\'item:', e);
     }
   }
 
@@ -334,7 +309,7 @@ export class MarketDataCollectorMod extends Mod {
       updatedData.maxPrice = newData.price;
     }
     
-    // Calculer la moyenne (simple, peut être amélioré avec une moyenne pondérée)
+    // Calculer la moyenne (simple)
     if (existingData.avgPrice) {
       updatedData.avgPrice = (existingData.avgPrice + newData.price) / 2;
     } else {
