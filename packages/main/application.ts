@@ -112,11 +112,7 @@ export class Application {
 
     app.on('second-instance', () => {
       logger.debug('Application -> second-instance')
-      if (this._gWindows.length) {
-        // Focus on the main window if the user tried to open another
-        if (this._gWindows[0].isMinimized()) this._gWindows[0].restore()
-        this._gWindows[0].focus()
-      }
+      this.focusMainWindow()
     })
 
     app.on('activate', () => {
@@ -127,6 +123,29 @@ export class Application {
         this.createGameWindow()
       }
     })
+  }
+
+  /**
+   * Handles authentication code received from dofustouch:// protocol
+   * @param authCode Authentication code to pass to game window(s)
+   */
+  handleAuthCode(authCode: string) {
+    logger.debug('Application -> handleAuthCode')
+    // Pass the authCode to all game windows
+    for (const gWindow of this._gWindows) {
+      gWindow.processAuthCode(authCode)
+    }
+  }
+
+  /**
+   * Focus the main window
+   */
+  focusMainWindow() {
+    if (this._gWindows.length) {
+      // Focus on the main window if the user tried to open another
+      if (this._gWindows[0].isMinimized()) this._gWindows[0].restore()
+      this._gWindows[0].focus()
+    }
   }
 
   private async _initGameWindows() {
