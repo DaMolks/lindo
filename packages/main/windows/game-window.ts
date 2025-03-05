@@ -59,7 +59,7 @@ export class GameWindow extends (EventEmitter as new () => TypedEmitter<GameWind
       show: false,
       resizable: true,
       frame: platform() !== 'linux',
-      title: 'Lindo',
+      title: 'EmuTool',
       fullscreenable: true,
       fullscreen: this._store.optionStore.window.fullScreen,
       width: this._store.optionStore.window.resolution.width,
@@ -218,5 +218,23 @@ export class GameWindow extends (EventEmitter as new () => TypedEmitter<GameWind
 
   clearCache() {
     return this._win.webContents.session.clearCache()
+  }
+
+  /**
+   * Process authentication code received from dofustouch:// protocol
+   * and pass it to the game UI to handle login
+   * @param authCode The authentication code from Dofus Touch
+   */
+  processAuthCode(authCode: string) {
+    logger.debug(`GameWindow -> processAuthCode: Sending auth code to window`)
+    
+    // Create a custom event to send to the webContents
+    this._win.webContents.send('protocol-auth-code', authCode)
+    
+    // Focus this window to show the authentication process
+    this.focus()
+    if (this.isMinimized()) {
+      this.restore()
+    }
   }
 }
