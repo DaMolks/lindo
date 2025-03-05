@@ -7,6 +7,7 @@ import { GripPositionSaveMod } from './grip-position-save'
 import { HarvestBarMod } from './harvest-bar'
 import { HealthBarMod } from './health-bar'
 import { JobXPMod } from './job-xp'
+import { MarketDataCollectorMod } from './market-data-collector'
 import { NotificationsMod } from './notifications'
 import { PartyInfoMod, PartyMemberMod } from './party-info'
 import { RapidExchangeMod } from './rapid-exchange'
@@ -27,6 +28,7 @@ export * from './general'
 export * from './grip-position-save'
 export * from './harvest-bar'
 export * from './job-xp'
+export * from './market-data-collector'
 
 export const MODS = [
   ShortcutsMod,
@@ -46,5 +48,6 @@ export const MODS = [
   RuneListerMod,
   ShowResourcesMod,
   ZaapSearchFilterMod,
+  MarketDataCollectorMod,
   ...GENERAL_MODS
 ] as const
