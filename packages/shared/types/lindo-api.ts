@@ -54,6 +54,8 @@ export interface LindoAPI {
   // auto-group
   subscribeToAutoGroupPathInstruction: (callback: (instruction: FollowInstruction) => void) => () => void
   sendAutoGroupPathInstruction: (instruction: FollowInstruction) => void
+  // custom protocol
+  subscribeToProtocolAuth: (callback: (authCode: string) => void) => () => void
   // options
   resetGameData: () => void
   clearCache: () => void
