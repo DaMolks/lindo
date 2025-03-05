@@ -1,11 +1,11 @@
 {
-  "name": "lindo",
-  "productName": "Lindo",
+  "name": "emutool",
+  "productName": "EmuTool",
   "private": true,
-  "version": "3.0.0-rc.12",
-  "description": "Play Dofus Touch on Linux/OS X/Window",
-  "homepage": "https://github.com/prixe/lindo",
-  "author": "Zenoxs <amaury.civier@gmail.com>",
+  "version": "1.0.0",
+  "description": "Enhanced emulator tools for Touch games",
+  "homepage": "https://github.com/DaMolks/lindo",
+  "author": "DaMolks <github@damolks.com>",
   "license": "GPL-3.0",
   "main": "dist/main/index.cjs",
   "scripts": {
