@@ -32,13 +32,25 @@ window.addEventListener('DOMContentLoaded', () => {
     ipcRenderer.send(IPCEvents.TOGGLE_MAXIMIZE_WINDOW)
   })
 
-  titleBar.updateTitle('Lindo')
+  titleBar.updateTitle('EmuTool')
   const lindoTitleBar: LindoTitleBar = {
     updateTitle: (title: string) => titleBar.updateTitle(title),
     height: titlebarRef.clientHeight + 'px'
   }
   contextBridge.exposeInMainWorld('titleBar', lindoTitleBar)
 })
+
+// Handle dofustouch:// protocol URLs
+const subscribeToProtocolAuth = (callback: (authCode: string) => void): (() => void) => {
+  const listener = (_: IpcRendererEvent, authCode: string) => {
+    callback(authCode)
+  }
+  ipcRenderer.on('protocol-auth-code', listener)
+
+  return () => {
+    ipcRenderer.removeListener('protocol-auth-code', listener)
+  }
+}
 
 // MOBX
 const forwardPatchToMain = (patch: IJsonPatch): void => {
@@ -292,6 +304,7 @@ const lindoApi: LindoAPI = {
   sendAutoGroupPathInstruction,
   resetGameData,
   clearCache,
+  subscribeToProtocolAuth,
   logger
 }
 contextBridge.exposeInMainWorld('lindoAPI', lindoApi)
