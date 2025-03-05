@@ -1,7 +1,7 @@
 {
-  "appId": "com.lindo.app",
-  "productName": "Lindo",
-  "copyright": "Copyright © 2022 Zenox, Prixe",
+  "appId": "com.emutool.app",
+  "productName": "EmuTool",
+  "copyright": "Copyright © 2025 DaMolks",
   "asar": true,
   "directories": {
     "output": "release/${version}",
@@ -16,6 +16,14 @@
     {
       "from": "resources/icon.png",
       "to": "icon.png"
+    }
+  ],
+  "protocols": [
+    {
+      "name": "Dofus Touch Protocol",
+      "schemes": [
+        "dofustouch"
+      ]
     }
   ],
   "win": {
@@ -68,8 +76,8 @@
     "category": "public.app-category.games"
   },
   "linux": {
-    "executableName": "Lindo",
-    "description": "Lindo Client for Linux",
+    "executableName": "EmuTool",
+    "description": "EmuTool Client for Linux",
     "icon": "resources/icons",
     "desktop": "resources/lindo.desktop",
     "target": [
@@ -98,6 +106,6 @@
     "mimeTypes": [
       "application/x-binary"
     ],
-    "maintainer": "Prixe"
+    "maintainer": "DaMolks"
   }
 }
