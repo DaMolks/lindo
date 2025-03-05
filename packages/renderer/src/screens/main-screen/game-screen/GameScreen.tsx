@@ -4,7 +4,7 @@ import { useStores } from '@/store'
 import { Game } from '@/store/game-store/game'
 import { useI18nContext } from '@lindo/i18n'
 import { reaction } from 'mobx'
-import React, { memo, useEffect, useRef } from 'react'
+import React, { memo, useEffect, useRef, useState } from 'react'
 import { useGameManager } from './use-game-manager'
 
 export interface GameScreenProps {
@@ -22,6 +22,78 @@ export const GameScreen = memo(({ game }: GameScreenProps) => {
     LL
   })
   const iframeGameRef = useRef<HTMLIFrameElementWithDofus>(null)
+  const [gameWindow, setGameWindow] = useState<DofusWindow | null>(null)
+  const [authCodeReady, setAuthCodeReady] = useState<string | null>(null)
+  
+  // Effect to handle protocol authentication code
+  useEffect(() => {
+    // Subscribe to protocol auth events
+    const unsubscribe = window.lindoAPI.subscribeToProtocolAuth((authCode) => {
+      console.log(`[GameScreen] Received auth code: ${authCode}`)
+      
+      if (iframeGameRef.current?.contentWindow) {
+        // If the game window is already available, process the authCode immediately
+        handleAuthCode(authCode, iframeGameRef.current.contentWindow)
+      } else {
+        // Otherwise, store it for when the game loads
+        setAuthCodeReady(authCode)
+      }
+    })
+    
+    return () => {
+      unsubscribe()
+    }
+  }, [])
+  
+  // Function to handle authentication with the received code
+  const handleAuthCode = (authCode: string, dWindow: DofusWindow) => {
+    try {
+      console.log(`[GameScreen] Processing auth code in game window: ${authCode}`)
+      
+      // Check if the window is initialized and login screen is available
+      if (dWindow && dWindow.gui && dWindow.gui.loginScreen) {
+        // We simulate a script injection and connection
+        const script = document.createElement('script')
+        script.textContent = `
+          try {
+            console.log("Authenticating with code: ${authCode}");
+            // This is the part that would need to be customized based on how Dofus handles these auth codes
+            
+            // For example, it might be something like:
+            if (window.gui && window.gui.loginScreen) {
+              // Set connection method to use the auth code
+              window.gui.loginScreen._connectMethodType = "auth";
+              
+              // Call the appropriate auth method with the code
+              // This is where you'd need to investigate what actual method is used
+              if (typeof window.gui.loginScreen.connectWithAuthCode === 'function') {
+                window.gui.loginScreen.connectWithAuthCode("${authCode}");
+              } else if (typeof window.gui.loginScreen._loginWithAuthCode === 'function') {
+                window.gui.loginScreen._loginWithAuthCode("${authCode}");
+              } else {
+                // Try to use the auth code with the login function directly
+                window.gui.loginScreen._login("", "", false, "${authCode}");
+              }
+            }
+          } catch (err) {
+            console.error("Error during auth:", err);
+          }
+        `
+        
+        // Insert the script into the game iframe
+        const iframeDoc = iframeGameRef.current?.contentDocument || iframeGameRef.current?.contentWindow?.document
+        if (iframeDoc) {
+          iframeDoc.body.appendChild(script)
+          // Clean up
+          setTimeout(() => {
+            iframeDoc.body.removeChild(script)
+          }, 100)
+        }
+      }
+    } catch (error) {
+      console.error('[GameScreen] Error processing auth code:', error)
+    }
+  }
 
   useEffect(() => {
     return reaction(
@@ -40,6 +112,13 @@ export const GameScreen = memo(({ game }: GameScreenProps) => {
   const handleLoad = () => {
     if (iframeGameRef.current) {
       const gameWindow = iframeGameRef.current.contentWindow
+      setGameWindow(gameWindow)
+
+      // If we have an auth code ready, process it
+      if (authCodeReady) {
+        handleAuthCode(authCodeReady, gameWindow)
+        setAuthCodeReady(null)
+      }
 
       // only for debug purpose
       gameWindow.findSingleton = (searchKey: string, window: DofusWindow) => {
